@@ -14,5 +14,4 @@ int main(int argc, char* argv[])
     else {
         std::cout << "Failed";
     }
-    return 0;
 }
