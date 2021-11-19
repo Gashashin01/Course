@@ -49,13 +49,15 @@ void main(int argc, char* argv[])
     const std::string searchString = "password: "; // 10
     size_t startOfPassword = 0;
     size_t curPos = 0;
-    // _password: ***** Some text. And other password: 77777 other Text
+//password: hvdbvih password: 1212 sometext
+//password: hvdbvih password: 1212 sometext
+//password: hvdbvih password: 1212 sometext
     while (ReadFile(secretFile, &buf[0], buf.size(), &dwBytesRead, NULL) && dwBytesRead > 0) {
         while (startOfPassword != std::string::npos) {
             startOfPassword = buf.find(searchString, curPos); // 1
             if (startOfPassword != std::string::npos) {
                 startOfPassword += searchString.size(); // startOfPassword == 11
-                curPos += startOfPassword; // 11
+                curPos = startOfPassword; // 11
                 size_t endOfPassword = buf.find(" ", startOfPassword); //16
                 if (endOfPassword != std::string::npos) {
                     const size_t passwordLength = endOfPassword - startOfPassword; // 5
