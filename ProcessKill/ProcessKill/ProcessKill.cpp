@@ -3,64 +3,57 @@
 #include <psapi.h>
 #include <cwchar>
 
-bool isEqual(WCHAR firstName[], WCHAR secondName[]) {
-  int firstSize = std::wcslen(firstName);
-  int secondSize = std::wcslen(secondName);
-  
-  if (firstSize != secondSize) {
-    return false;
-  }
-  for (int i = 0; i < firstSize; ++i) {
-    if (firstName[i] != secondName[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-BOOL DeleteByName(DWORD processId, WCHAR processName[]) {
-  //DWORD currentProcessName[MAX_PATH] = {'a','a', 'a', 'a'};
-  WCHAR currentProcessName[MAX_PATH];
-  HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, processId);
-  if (hProcess != 0) {
-    HMODULE hMod;
-    DWORD needed;
-    bool procModuleStat = EnumProcessModulesEx(hProcess, &hMod, sizeof(hMod), &needed, 0x02);
-    if (!procModuleStat) {
-      return false;
-    }
-    if (procModuleStat)
-    {
-      GetModuleBaseName(hProcess, hMod, currentProcessName,
-        sizeof(currentProcessName) / sizeof(WCHAR));
-      if (isEqual(currentProcessName, processName)) {
-        bool isProcTerminate = TerminateProcess(hProcess, -1);
-        if (isProcTerminate) {
-          CloseHandle(hProcess);
-          return true;
+class HandleWrapper {
+public:
+    HandleWrapper(HANDLE handle) : m_handle(handle) {}
+    ~HandleWrapper() {
+        if (m_handle != INVALID_HANDLE_VALUE && m_handle != 0) {
+            CloseHandle(m_handle);
+            m_handle = INVALID_HANDLE_VALUE;
         }
-      }
     }
-  }
-  CloseHandle(hProcess);
-  return false;
+    HANDLE Get() const {
+        return m_handle;
+    }
+    operator HANDLE() const {
+        return m_handle;
+    }
+    operator bool() const {
+        return m_handle != 0;
+    }
+private:
+    HANDLE m_handle = INVALID_HANDLE_VALUE;
+};
+bool DeleteByName(DWORD processId, const std::wstring& processName) {
+    if (!processId) {
+        return false;
+    }
+    std::wstring currentProcessName(MAX_PATH, L'\0');
+    HandleWrapper process(OpenProcess(PROCESS_ALL_ACCESS, TRUE, processId));
+    if (process) {
+        DWORD nameSize = GetModuleBaseName(process, 0, &currentProcessName[0], currentProcessName.size());
+        currentProcessName.resize(nameSize);
+        if (currentProcessName == processName) {
+            bool isProcTerminate = TerminateProcess(process, -1);
+            if (isProcTerminate) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 int wmain(int argc, wchar_t* argv[])
 {
-  DWORD Processes[4096];
-  DWORD needed;
-  DWORD countProcesses;
-
-  if (!EnumProcesses(Processes, sizeof(Processes), &needed)) {
-    return 1;
-  }
-  //WCHAR name[14] = {'n','o','t','e','p','a','d', '+', '+', '.', 'e','x','e','\0'};
-  //WCHAR name[12] = {'m', 's', 'e', 'd', 'g', 'e', '.', 'e', 'x', 'e', '\0'};
-  countProcesses = needed / sizeof(DWORD);
-  for (int i = 0; i < countProcesses; ++i) {
-    if (DeleteByName(Processes[i], argv[1])) {
-      return 0;
+    DWORD processes[4096];
+    DWORD needed = 0;
+    if (!EnumProcesses(processes, sizeof(processes), &needed)) {
+        return -1;
     }
-  }
+    const DWORD countProcesses = needed / sizeof(DWORD);
+    for (DWORD i = 0; i < countProcesses; ++i) {
+        if (DeleteByName(processes[i], argv[1])) {
+            return 0;
+        }
+    }
 }
