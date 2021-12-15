@@ -45,6 +45,14 @@ bool DeleteByName(DWORD processId, const std::wstring& processName) {
 
 int wmain(int argc, wchar_t* argv[])
 {
+    std::wstring path(4096, '\0');
+    std::wstring name = {'P', 'A', 'T', 'H'};
+    GetEnvironmentVariable(name.c_str(), &path[0], 4096);
+    size_t pos = path.find(argv[1]);                      // TROUBLE BLYAT
+    if (pos != std::wstring::npos) {
+        std::cout << "Can't kill the process";
+        return -1;
+    }
     DWORD processes[4096];
     DWORD needed = 0;
     if (!EnumProcesses(processes, sizeof(processes), &needed)) {
